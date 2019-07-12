@@ -6,16 +6,27 @@ require('RColorBrewer')
 require('ggplot2')
 require('stringr')
 require('here')
+require('httr')
 
-if(!exists(here('github_spatial_data/eez_downres'))){ 
+download_eez_spatial <- function() {
 
+if(!dir.exists(here('github_spatial_data/eez_downres'))){ 
   dir.create(here("github_spatial_data"))
+  GET("https://github.com/OHI-Science/ohi-global_package/raw/master/eez_downres.zip", 
+      write_disk(here("github_spatial_data/eez_downres.zip"), overwrite=TRUE))
+  setwd(here("github_spatial_data"))
+  unzip("eez_downres.zip", overwrite = TRUE)
+  setwd(here(".."))
+  file.remove(here("github_spatial_data/eez_downres.zip"))
+  cat(sprintf("downloaded 'github_spatial_data/eez_downres' data to %s", here()))
   
-  
+} else {
+  cat("spatial data already exists in github_spatial_data/eez_downres")
+  }
 }
   
-get_rgn_df <- function(dsn = str_replace(dir_global, 'ohi-global', 'ohiprep/globalprep/spatial/downres'),
-                       layer = NULL, prj = 'gcs') {
+get_rgn_df <- function(layer = NULL, prj = 'gcs',
+                       dsn=here("github_spatial_data/eez_downres")) {
   if(is.null(layer)) layer <- sprintf('rgn_eez_%s_low_res', prj)
   rgn_shp <- readOGR(dsn = path.expand(dsn), layer, verbose = FALSE) #, p4s = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs')
 
@@ -32,14 +43,14 @@ get_rgn_df <- function(dsn = str_replace(dir_global, 'ohi-global', 'ohiprep/glob
   ### Fortify the rgn_eez from shapefile into dataframe.  Then attach the region
   ### ID by the polygon ID (row number from @data)
   rgn_df <- fortify(rgn_shp) %>%
-    mutate(id = as.integer(id)) %>%
-    left_join(rgn_lookup, by = 'id')
+    dplyr::mutate(id = as.integer(id)) %>%
+    dplyr::left_join(rgn_lookup, by = 'id')
   
   return(rgn_df)
 }
 
 
-get_land_df <- function(dsn = sprintf('%s/../ohiprep/globalprep/spatial/downres', dir_global),
+get_land_df <- function(dsn = here("github_spatial_data/eez_downres"),
                         layer = 'rgn_land_mol_low_res') {
 ### gets Mollweide land forms for plotting.
   rgn_shp <- readOGR(dsn = path.expand(dsn), layer, verbose = FALSE)
@@ -51,7 +62,7 @@ get_land_df <- function(dsn = sprintf('%s/../ohiprep/globalprep/spatial/downres'
   return(rgn_df)
 }
 
-get_ocean_df <- function(dsn = sprintf('%s/../ohiprep/globalprep/spatial/downres', dir_global),
+get_ocean_df <- function(dsn = here("github_spatial_data/eez_downres"),
                          layer = 'rgn_all_mol_low_res') {
   ### gets Mollweide ocean regions (all) for plotting.
   rgn_shp <- readOGR(dsn = path.expand(dsn), layer, verbose = FALSE)
